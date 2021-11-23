@@ -1,5 +1,5 @@
 /**
-  Okta Registration Handler example
+  Okta Registration Handler
 **/
 global class cgOktaRegistrationHandler implements Auth.RegistrationHandler{
     
@@ -48,6 +48,7 @@ global User createUser(Id portalId, Auth.UserData data){
     if(data.attributeMap.containsKey('sfdc_networkid')) {
         System.debug('Registering Community user: ' + data.email);
         Id contactId;
+        Case caseId;
         // To keep things modular, we're creating the Contact in a separate method
         contactId = createContact(data);
         System.debug('Created contact: '+ contactId);
@@ -60,6 +61,9 @@ global User createUser(Id portalId, Auth.UserData data){
         User u = createUser(data,p);
         
         u.contactId = contactId;
+
+        caseId = createCase(u);
+
         return u;
     } else {
         //This is not a community, so we Assign an internal profile
@@ -142,5 +146,27 @@ global void updateUser(Id userId, Id portalId, Auth.UserData data){
         u.timeZoneSidKey = 'Europe/Amsterdam';
         u.profileId = p.Id;
         return u;
-    }        
+    }  
+    
+    
+    private Case createCase(User u) {
+        System.debug('Creating account vetting case');
+
+
+	
+        
+        Contact cn = [SELECT FirstName, LastName FROM contact WHERE id=:u.contactId];
+        
+
+        Case cs = new Case(subject='Account vetting for portal user ' + cn.FirstName + ' ' + cn.LastName);        
+        cs.contactId = u.contactId;
+        cs.Origin = 'Okta';
+        cs.Description = 'Validate that ' + cn.FirstName + ' ' + cn.LastName + ' is authorized to access the portal. If authorized, raise permission to allow full access to portal functionality. Until then, this user has limited access to the portal.';
+		
+        insert cs;
+        
+        return cs;
+
+    }
+
 }
